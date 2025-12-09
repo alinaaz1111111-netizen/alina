@@ -1,0 +1,14 @@
+import turtle
+import random
+
+# Настройка черепахи
+t = turtle.Turtle()
+t.speed(0)  # максимальная скорость
+t.pensize(2)
+
+# Случайные движения
+for _ in range(100):
+    t.forward(random.randint(5, 20))
+    t.right(random.randint(-180, 180))
+
+turtle.done()
