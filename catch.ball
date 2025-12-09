@@ -1,0 +1,105 @@
+import pygame
+from pygame.draw import *
+from random import randint
+pygame.init()
+
+# Настройки игры
+FPS = 90
+SCREEN_WIDTH = 1200
+SCREEN_HEIGHT = 800
+screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+
+# Палитра цветов для шаров
+colors = [(255, 0, 0), (0, 0, 255), (255, 255, 0), 
+          (0, 255, 0), (255, 0, 255), (0, 255, 255)]
+
+# Игровые переменные
+score = 0                    # Счет игрока
+nob = 8                      # Количество шаров (number of balls)
+bo = []                      # Список шаров: [скорость, координаты, радиус, цвет]
+
+def new_ball():
+    """
+    Создает новый шар со случайными параметрами и добавляет его в список шаров.
+    Параметры шара:
+      - случайные координаты в пределах экрана
+      - случайный радиус
+      - случайный цвет из палитры
+      - случайная скорость по осям X и Y
+    """
+    x = randint(100, SCREEN_WIDTH - 100)
+    y = randint(100, SCREEN_HEIGHT - 100)
+    r = randint(20, 40)
+    color = colors[randint(0, 5)]
+    circle(screen, color, (x, y), r)
+    # Структура элемента списка шаров:
+    # [ [vx, vy], [x, y], radius, color ]
+    bo.append([[randint(-10, 10), randint(-10, 10)], [x, y], r, color])
+
+def click(event):
+    """
+    Обрабатывает клик мыши. Проверяет попадание в любой шар.
+    При попадании:
+      - увеличивает счет
+      - создает новый шар
+      - удаляет пораженный шар
+    """
+    global score
+    for i in range(len(bo)):
+        # Проверка попадания: расстояние от клика до центра шара <= радиусу
+        if (bo[i][1][0] - event.pos[0])**2 + (bo[i][1][1] - event.pos[1])**2 <= bo[i][2]**2:
+            score += 1
+            new_ball()    # Добавляем новый шар
+            del bo[i]     # Удаляем пораженный шар
+            break         # Прерываем цикл после первого попадания
+
+def move(screen):
+    """
+    Обновляет положение всех шаров на экране.
+    Обрабатывает отскоки от границ экрана и перерисовывает шары.
+    """
+    for i in range(len(bo)):
+        # Проверка столкновения с вертикальными границами
+        if bo[i][1][0] + bo[i][2] >= SCREEN_WIDTH or bo[i][1][0] - bo[i][2] <= 0:
+            bo[i][0][0] *= -1  # Меняем направление по оси X
+        # Проверка столкновения с горизонтальными границами
+        if bo[i][1][1] + bo[i][2] >= SCREEN_HEIGHT or bo[i][1][1] - bo[i][2] <= 0:
+            bo[i][0][1] *= -1  # Меняем направление по оси Y
+        
+        # Обновление координат шара
+        bo[i][1][0] += bo[i][0][0]
+        bo[i][1][1] += bo[i][0][1]
+        
+        # Отрисовка шара на новом месте
+        circle(screen, bo[i][3], (bo[i][1][0], bo[i][1][1]), bo[i][2])
+
+# Создание начальных шаров
+for i in range(nob):
+    new_ball()
+
+# Основной игровой цикл
+finished = False
+while not finished:
+    # Контроль частоты кадров
+    pygame.time.Clock().tick(FPS)
+    
+    # Обработка событий
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            finished = True
+        elif event.type == pygame.MOUSEBUTTONDOWN:
+            click(event)  # Проверяем попадание при клике
+    
+    # Обновление положения шаров
+    move(screen)
+    
+    # Отображение счета (белый текст в левом нижнем углу)
+    score_text = pygame.font.Font(None, 50).render(str(score), True, (255, 255, 255))
+    screen.blit(score_text, (10, SCREEN_HEIGHT - 40))
+    
+    # Обновление экрана
+    pygame.display.update()
+    screen.fill((0, 0, 0))  # Очистка экрана (черный фон)
+
+# Завершение работы Pygame
+pygame.quit()
