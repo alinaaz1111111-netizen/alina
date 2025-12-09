@@ -1,0 +1,233 @@
+import math
+from random import randint
+import pygame
+
+# Инициализация Pygame
+pygame.init()
+
+# Константы игры
+WIDTH = 800      # Ширина экрана
+HEIGHT = 600     # Высота экрана
+screen = pygame.display.set_mode((WIDTH, HEIGHT))
+pygame.display.set_caption("Стрельба по мишеням")  # Название окна
+
+FPS = 80  # Частота кадров
+
+# НОВАЯ ПАЛИТРА ЦВЕТОВ (более яркие и контрастные)
+DARK_BLUE = 0x1E3A8A    # Темно-синий фон
+ORANGE = 0xF97316       # Оранжевый
+PURPLE = 0x7C3AED       # Фиолетовый
+LIME = 0x84CC16         # Лайм
+PINK = 0xEC4899         # Розовый
+TEAL = 0x0D9488         # Бирюзовый
+GOLD = 0xF59E0B         # Золотой
+BLACK = (0, 0, 0)       # Черный
+WHITE = 0xFFFFFF        # Белый
+LIGHT_GREY = 0xD1D5DB   # Светло-серый для пушки
+GAME_COLORS = [ORANGE, PURPLE, LIME, PINK, TEAL, GOLD]  # Цвета мишеней и шариков
+
+class Ball:
+    def __init__(self, screen: pygame.Surface, x=40, y=450):
+        """Конструктор класса Ball - создает шарик
+        Args:
+        screen - поверхность для отрисовки
+        x, y - начальные координаты
+        """
+        self.screen = screen
+        self.x = x
+        self.y = y
+        self.r = 10          # Радиус шарика
+        self.vx = 0          # Скорость по X
+        self.vy = 0          # Скорость по Y
+        self.color = GAME_COLORS[randint(0, 5)]  # Случайный цвет из палитры
+        self.live = 30       # Время жизни шарика
+
+    def move(self):
+        """Перемещение шарика с физикой и отскоками от стен"""
+        self.x += self.vx
+        self.y -= self.vy
+        
+        # Гравитация (ускорение вниз)
+        if self.vy <= -1 or self.vy >= 1 or self.y < 590:
+            self.vy -= 1  # Ускорение вниз
+            
+            # Отскок от боковых стен
+            if self.x + self.r >= WIDTH or self.x - self.r <= 0:
+                self.vx *= -0.8  # С потерей скорости
+                
+            # Отскок от верхней/нижней границы
+            if self.y + self.r >= HEIGHT or self.y - self.r <= 0:
+                self.vy *= -0.8  # С потерей скорости
+        else:
+            # Шарик упал на пол
+            self.y = 585
+            self.vy = 0
+            self.vx = 0
+
+    def draw(self):
+        """Отрисовка шарика"""
+        pygame.draw.circle(self.screen, self.color, (self.x, self.y), self.r)
+        # Добавляем обводку для красоты
+        pygame.draw.circle(self.screen, BLACK, (self.x, self.y), self.r, 2)
+
+    def hittest(self, obj):
+        """Проверка столкновения с целью obj"""
+        dx = self.x - obj.x
+        dy = self.y - obj.y
+        distance = (dx**2 + dy**2)**0.5  # Расстояние между центрами
+        if distance <= self.r + obj.r:   # Пересекаются ли круги
+            return True
+        return False
+
+class Gun:
+    def __init__(self, screen):
+        """Конструктор пушки"""
+        self.screen = screen
+        self.f2_power = 10     # Мощность выстрела
+        self.f2_on = 0         # Флаг зарядки
+        self.an = 1            # Угол прицеливания
+        self.color = LIGHT_GREY  # Цвет пушки
+        self.length = 30       # Длина ствола
+        self.width = 10        # Ширина ствола
+
+    def fire2_start(self, event):
+        """Начало зарядки выстрела (нажатие мыши)"""
+        self.f2_on = 1
+
+    def fire2_end(self, event):
+        """Выстрел (отпускание мыши)"""
+        global new_ball
+        new_ball = Ball(self.screen)  # Создаем новый шарик
+        # Вычисляем скорости по углу прицеливания
+        new_ball.vx = self.f2_power * math.cos(math.atan2(
+            (event.pos[1] - new_ball.y), (event.pos[0] - new_ball.x)))
+        new_ball.vy = -self.f2_power * math.sin(math.atan2(
+            (event.pos[1] - new_ball.y), (event.pos[0] - new_ball.x)))
+        self.f2_on = 0          # Сброс зарядки
+        self.f2_power = 10      # Сброс мощности
+
+    def targetting(self, event):
+        """Прицеливание по положению мыши"""
+        if event:
+            dx = event.pos[0] - 20
+            dy = 450 - event.pos[1]
+            if dx != 0:
+                self.an = math.atan(dy / dx)
+            else:
+                self.an = math.pi / 2
+        self.color = LIGHT_GREY if self.f2_on == 0 else GOLD  # Меняем цвет при зарядке
+
+    def draw(self):
+        """Отрисовка пушки"""
+        a = self.length + self.f2_power  # Длина с учетом мощности
+        b = self.width / 2
+        points = [
+            (20 - b * math.sin(self.an), 450 - b * math.cos(self.an)),
+            (20 + b * math.sin(self.an), 450 + b * math.cos(self.an)),
+            (20 + b * math.sin(self.an) + a * math.cos(self.an),
+             450 + b * math.cos(self.an) - a * math.sin(self.an)),
+            (20 - b * math.sin(self.an) + a * math.cos(self.an),
+             450 - b * math.cos(self.an) - a * math.sin(self.an))
+        ]
+        pygame.draw.polygon(self.screen, self.color, points)
+
+    def power_up(self):
+        """Увеличение мощности при удержании мыши"""
+        if self.f2_on:
+            if self.f2_power < 30:
+                self.f2_power += 1
+
+class Target:
+    def __init__(self, screen: pygame.Surface):
+        """Конструктор мишени"""
+        self.screen = screen
+        self.points = 0        # Очки
+        self.live = 1          # Жива ли мишень
+        self.vx = randint(-10, 10)  # Скорость X
+        self.vy = randint(-10, 10)  # Скорость Y
+        self.new_target()      # Инициализация позиции
+
+    def new_target(self):
+        """Создание новой мишени в случайном месте"""
+        self.x = randint(100, 750)
+        self.y = randint(50, 500)
+        self.r = randint(20, 50)      # Случайный размер
+        self.color = GAME_COLORS[randint(0, 5)]  # Случайный цвет
+        self.vx = randint(-10, 10)
+        self.vy = randint(-10, 10)
+
+    def hit(self, points=1):
+        """Обработка попадания"""
+        self.points += points
+
+    def draw(self):
+        """Отрисовка мишени"""
+        pygame.draw.circle(self.screen, self.color, (self.x, self.y), self.r)
+        pygame.draw.circle(self.screen, BLACK, (self.x, self.y), self.r, 3)  # Обводка
+
+    def move(self):
+        """Движение мишени с отскоками"""
+        self.x += self.vx
+        self.y += self.vy
+        
+        # Отскок от стен
+        if self.x + self.r >= WIDTH or self.x - self.r <= 0:
+            self.vx *= -1
+        if self.y + self.r >= HEIGHT or self.y - self.r <= 0:
+            self.vy *= -1
+
+# Создание объектов игры
+new_ball = Ball(screen, -600, -600)  # Исходный шарик вне экрана
+gun = Gun(screen)
+target1 = Target(screen)
+target2 = Target(screen)
+
+finished = False
+
+# Главный игровой цикл
+while not finished:
+    # Контроль FPS
+    pygame.time.Clock().tick(FPS)
+
+    # Очистка экрана новым цветом фона
+    screen.fill(DARK_BLUE)
+    
+    # Отрисовка объектов
+    gun.draw()
+    target1.draw()
+    target2.draw()
+    new_ball.draw()
+
+    # Отображение счета
+    total_score = target1.points + target2.points
+    score_display = pygame.font.Font(None, 50).render(
+        str(total_score), True, WHITE)
+    screen.blit(score_display, (10, 10))
+    
+    pygame.display.update()
+
+    # Обработка событий
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            finished = True
+        elif event.type == pygame.MOUSEBUTTONDOWN:
+            gun.fire2_start(event)
+        elif event.type == pygame.MOUSEBUTTONUP:
+            gun.fire2_end(event)
+        elif event.type == pygame.MOUSEMOTION:
+            gun.targetting(event)
+    
+    # Обновление объектов
+    target1.move()
+    target2.move()
+    new_ball.move()
+    
+    # Проверка попаданий
+    for target in (target1, target2):
+        if new_ball.hittest(target) and target.live:
+            target.hit()
+            target.new_target()  # Новая мишень
+    
+    gun.power_up()  # Зарядка пушки
+
+pygame.quit()
