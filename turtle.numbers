@@ -1,0 +1,39 @@
+import turtle
+turtle.shape('turtle')
+i=turtle.Turtle()
+F = turtle.forward
+L = turtle.left
+R = turtle.right
+U = turtle.penup
+D = turtle.pendown
+SIZE=50
+DIAG=SIZE*2**0.5
+
+digits = {
+    '1': [U, R, 90, F, SIZE, L, 135, D, F, DIAG, R, 135, F, 2*SIZE],
+    '2': [F, SIZE, R, 90, F, SIZE, R, 45, F, DIAG, L, 135, F, SIZE],        
+    '3': [F, SIZE, R, 135, F, DIAG, L, 135, F, SIZE, R, 135, F, DIAG],  
+    '0': [D, F, SIZE, R, 90, F, 2*SIZE, R, 90, F, SIZE, R, 90, F, 2*SIZE, R, 90],  
+}
+def draw_number(number):
+    for i, d in enumerate(str(number)):
+        U()
+        turtle.goto(i * (SIZE + 20), 0)
+        turtle.setheading(0)
+        D()
+        
+        a = 0
+        while a < len(digits[d]):
+            if digits[d][a] in (U, D):
+                digits[d][a]()
+                a+=1
+            else:
+                if a+1<len(digits[d]) and isinstance(digits[d][a+1],(int,float)):
+                    digits[d][a](digits[d][a+1])
+                    a += 2
+                 
+                else:
+                    digits[d][a]()
+                    a += 1
+                    
+draw_number(121303)
